@@ -1,0 +1,181 @@
+<launch>
+
+
+  <arg name="database_path"     default=""/>
+  <arg name="rgbd_odometry"     default="false"/>
+  <!-- Choose visualization -->
+  <arg name="rviz"       default="true" />
+  <arg name="rtabmapviz" default="false" />
+  <arg name="localization"      default="true"/>
+  <arg     if="$(arg localization)" name="args"  default=""/>
+  <arg unless="$(arg localization)" name="args"  default="--delete_db_on_start"/>
+
+
+
+  <arg name="wait_for_transform"  default="0.5"/>
+  <!--
+      robot_state_publisher's publishing frequency in "turtlebot_bringup/launch/includes/robot.launch.xml"
+      can be increase from 5 to 10 Hz to avoid some TF warnings.
+  -->
+
+  <!-- sync rgb/depth images per camera -->
+ <group ns="camera1">
+   <node pkg="nodelet" type="nodelet" name="nodelet_manager1" args="manager"/>
+   <node pkg="nodelet" type="nodelet" name="rgbd_sync1" args="standalone rtabmap_ros/rgbd_sync nodelet_manager1">
+     <remap from="rgb/image"       to="/camera1/rgb/image_raw"/>
+     <remap from="depth/image"     to="/camera1/depth/image_raw"/>
+     <remap from="rgb/camera_info" to="/camera1/rgb/camera_info"/>
+     <param name="approx_sync"          value="false"/>
+   </node>
+ </group>
+
+ <group ns="camera2">
+   <node pkg="nodelet" type="nodelet" name="nodelet_manager2" args="manager"/>
+   <node pkg="nodelet" type="nodelet" name="rgbd_sync2" args="standalone rtabmap_ros/rgbd_sync nodelet_manager2">
+     <remap from="rgb/image"       to="/camera2/rgb/image_raw"/>
+     <remap from="depth/image"     to="/camera2/depth/image_raw"/>
+     <remap from="rgb/camera_info" to="/camera2/rgb/camera_info"/>
+     <param name="approx_sync"          value="false"/>
+   </node>
+ </group>
+
+ <group ns="camera3">
+   <node pkg="nodelet" type="nodelet" name="nodelet_manager3" args="manager"/>
+   <node pkg="nodelet" type="nodelet" name="rgbd_sync3" args="standalone rtabmap_ros/rgbd_sync nodelet_manager3">
+     <remap from="rgb/image"       to="/camera3/rgb/image_raw"/>
+     <remap from="depth/image"     to="/camera3/depth/image_raw"/>
+     <remap from="rgb/camera_info" to="/camera3/rgb/camera_info"/>
+     <param name="approx_sync"          value="false"/>
+   </node>
+ </group>
+
+  <!-- Mapping -->
+  <group ns="rtabmap">
+
+    <!-- Visual SLAM (robot side) -->
+    <!-- args: "delete_db_on_start" and "udebug" -->
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="$(arg args)">
+	    <param name="database_path"       type="string" value="$(arg database_path)"/>
+
+      <!-- 3 Intel RealSense D435 -->
+      <param name="rgbd_cameras"     type="int"    value="3"/>
+      <remap from="rgbd_image0"       to="/camera1/rgbd_image"/>
+      <remap from="rgbd_image1"       to="/camera2/rgbd_image"/>
+      <remap from="rgbd_image2"       to="/camera3/rgbd_image"/>
+
+      <param name="frame_id"         type="string" value="base_link"/>
+      <param name="wait_for_transform_duration" type="double" value="$(arg wait_for_transform)"/>
+
+      <param name="subscribe_depth"  type="bool"   value="false"/>
+      <param name="subscribe_rgbd"   type="bool"   value="true"/>
+      <param name="subscribe_scan" type="bool" value="true"/>
+
+      <param name="use_action_for_goal" type="bool"   value="true"/>
+      <remap from="move_base" to="/move_base"/>
+
+      <remap from="odom" to="/odometry/filtered"/>
+      <remap from="scan" to="/front/scan"/>
+      <param unless="$(arg rgbd_odometry)" name="odom_frame_id" value="odom"/>
+      <param unless="$(arg rgbd_odometry)" name="odom_tf_linear_variance" value="0.001"/>
+      <param unless="$(arg rgbd_odometry)" name="odom_tf_angular_variance" value="0.001"/>
+
+      <param name="queue_size" type="int" value="50"/>
+
+      <!-- RTAB-Map's parameters -->
+      <param name="Rtabmap/DetectionRate"           type="string" value="1"/> <!-- increase DetectionRate to 2 Hz instead of 1 Hz -->
+
+      <param name="RGBD/NeighborLinkRefining"       type="string" value="false"/>  <!-- Correct odometry using the input lidar topic using ICP -->
+      <param name="RGBD/ProximityBySpace"           type="string" value="true"/>  <!-- Find local loop closures based on the robot position in the map -->
+      <param name="RGBD/AngularUpdate"              type="string" value="0.1"/>  <!-- The robot should move to update the map -->
+      <param name="RGBD/LinearUpdate"               type="string" value="0.1"/>  <!-- The robot should move to update the map -->
+      <param name="RGBD/OptimizeFromGraphEnd"       type="string" value="true"/> <!-- On loop closures the graph will be optimized from the first pose in the map  (so /odom and /map will always match together) [Optimize graph from the newest node. If false, the graph is optimized from the oldest node of the current graph (this adds an overhead computation to detect to oldest node of the current graph, but it can be useful to preserve the map referential from the oldest node). -->
+      <param name="Grid/FromDepth"                  type="string" value="false"/> <!-- If true, the occupancy grid is created from the cloud generated by the depth camera. If false, the occupancy grid is created from the laser scans. -->
+      <param name="GridGlobal/MinSize"              type="string" value="50" />    <!-- Minimum map size (m) -->
+      <param name="Reg/Force3DoF"                   type="string" value="true"/>  <!-- Force 3DoF registration: roll, pitch and z won't be estimated -->
+      <param name="Reg/Strategy"                    type="string" value="1"/>     <!-- 1=ICP (refine global loop closures found with ICP using the laser scans) -->
+      <param name="RGBD/SavedLocalizationIgnored"   type="string" value="true"/>
+
+      <!-- Test new parameters -->
+      <param name="Icp/VoxelSize"                   type="string" value="0.05"/> <!-- Scans are filtered down to voxel of 5 cm before doing ICP -->
+      <param name="Icp/MaxCorrespondenceDistance"   type="string" value="0.1"/> <!-- Maximum distance between points during registration by ICP -->
+
+      <param name="Vis/EstimationType"              type="string" value="0"/> <!-- should be 0 for multi-cameras -->
+      <param name="Vis/CorGuessWinSize"             type="string" value="0"/> <!-- should be 0 for multi-cameras -->
+      <!-- <param name="Vis/CorNNType"                   type="string" value="4" /> --><!-- kNNBruteForceGPU=4. Used for features matching approach -->
+
+      <!-- RTAB-Map's parameters: do "rosrun rtabmap rtabmap (double-dash)params" to see the list of available parameters. -->
+      <param name="Icp/CorrespondenceRatio"      type="string" value="0.2"/>
+      <param name="Vis/MinInliers"               type="string" value="15"/>      <!-- 3D visual words minimum inliers to accept loop closure -->
+      <param name="Vis/InlierDistance"           type="string" value="0.1"/>    <!-- 3D visual words correspondence distance -->
+      <param name="RGBD/ProximityPathMaxNeighbors" type="string" value="0"/>
+      <param name="Rtabmap/TimeThr"              type="string" value="0"/>
+      <param name="Mem/RehearsalSimilarity"      type="string" value="0.30"/>
+
+
+	  <!-- localization mode -->
+	  <param     if="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="false"/>
+	  <param unless="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="true"/>
+	  <param name="Mem/InitWMWithAllNodes" type="string" value="$(arg localization)"/>
+    </node>
+  </group>
+
+<!-- ROS navigation stack move_base -->
+ <arg name="odom_frame_id"   default="odom"/>
+ <arg name="base_frame_id"   default="base_link"/>
+ <arg name="global_frame_id" default="map"/>
+ <arg name="odom_topic" default="/odometry/filtered" />
+ <arg name="laser_topic" default="/front/scan" />
+
+ <node pkg="move_base" type="move_base" respawn="true" name="move_base" output="screen">
+   <rosparam file="$(find ridgeback_navigation)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
+   <rosparam file="$(find ridgeback_navigation)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
+
+   <rosparam file="$(find ridgeback_navigation)/params/map_nav_params/local_costmap_params.yaml" command="load" />
+   <rosparam file="$(find ridgeback_navigation)/params/map_nav_params/global_costmap_params.yaml" command="load" />
+
+   <rosparam file="$(find ridgeback_navigation)/params/base_local_planner_params.yaml" command="load" />
+   <rosparam file="$(find ridgeback_navigation)/params/move_base_params.yaml" command="load" />
+</node>
+
+<!-- for the planner -->
+<node pkg="nodelet" type="nodelet" name="obstacle_nodelet_manager"  args="manager" output="screen"/>
+<node pkg="nodelet" type="nodelet" name="points_xyz_planner" args="load rtabmap_ros/point_cloud_xyz obstacle_nodelet_manager">
+
+  <remap from="depth/image"     to="/camera1/depth/image_raw"/>
+  <remap from="depth/camera_info" to="/camera1/rgb/camera_info"/>
+  <remap from="cloud"              to="/camera1/pointcloudXYZ" />
+  <param name="decimation"  type="int" value="2"/>
+  <param name="max_depth"   type="double" value="4.0"/>
+  <param name="voxel_size"  type="double" value="0.02"/>
+</node>
+
+<node pkg="nodelet" type="nodelet" name="obstacles_detection" args="load rtabmap_ros/obstacles_detection obstacle_nodelet_manager">
+  <remap from="cloud"     to="/camera1/pointcloudXYZ"/>
+  <remap from="obstacles" to="/obstacles_cloud"/>
+  <remap from="ground"    to="/ground_cloud"/>
+
+  <param name="frame_id"             type="string" value="base_link"/>
+  <param name="map_frame_id"         type="string" value="/map"/>
+  <param name="wait_for_transform"   type="bool" value="true"/>
+  <param name="min_cluster_size"     type="int" value="20"/>
+  <param name="max_obstacles_height" type="double" value="0.4"/>
+  <param name="ground_normal_angle"  type="double" value="0.1"/>
+</node>
+
+
+<!-- Visualisation RTAB-Map -->
+<node if="$(arg rtabmapviz)" pkg="rtabmap_ros" type="rtabmapviz" name="rtabmapviz" args="-d $(find rtabmap_ros)/launch/config/rgbd_gui.ini" output="screen">
+<param name="rgbd_cameras"       type="int"    value="3"/>
+<remap from="rgbd_image0"       to="/camera1/rgbd_image"/>
+<remap from="rgbd_image1"       to="/camera2/rgbd_image"/>
+<remap from="rgbd_image2"       to="/camera3/rgbd_image"/>
+
+<remap from="odom" to="/odometry/filtered"/>
+<remap from="scan" to="/front/scan"/>
+</node>
+
+
+<!-- Visualization RVIZ -->
+<node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find rtabmap_ros)/launch/config/ridgeback_navigation.rviz"/>
+
+</launch>

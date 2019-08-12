@@ -1,0 +1,56 @@
+<launch>
+
+<!-- name: ['left_e0', 'left_e1', 'left_s0', 'left_s1', 'left_w0', 'left_w1', 'left_w2']
+position: [-0.44830588525951215, 1.8465293734170667, -0.004601942363656241, -1.0043739208679747, 0.34476218207724674, 0.8018884568671001, -3.0418839023767754] -->
+
+  <!-- Good position for the arm so the camera can see all 3 objects -->
+  <!-- <param name="left_w0" value="0.34476218207724674"/>
+  <param name="left_w1" value="0.8018884568671001"/>
+  <param name="left_w2" value="-3.0418839023767754"/>
+  <param name="left_e0" value="-0.44830588525951215"/>
+  <param name="left_e1" value="1.8465293734170667"/>
+  <param name="left_s0" value="-0.004601942363656241"/>
+  <param name="left_s1" value="-1.0043739208679747"/> -->
+
+  <!-- Better config for RPL Lab -->
+  <param name="left_e0" value="-0.3252039270317077"/>
+  <param name="left_e1" value="1.868388599644434"/>
+  <param name="left_s0" value="-0.14764565083397108"/>
+  <param name="left_s1" value="-1.1006312153077844"/>
+  <param name="left_w0" value="0.2592427531526349"/>
+  <param name="left_w1" value="0.8241311782914386"/>
+  <param name="left_w2" value="-3.058757691043515"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="1.28 0.10 0.19 0 0 0 base camera_link 1000" />
+
+  <include file="$(find baxter_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="true"/>
+  </include>
+
+  <include file="$(find baxter_moveit_config)/launch/move_group.launch">
+    <arg name="allow_trajectory_execution" value="true"/>
+  </include>
+
+  <!-- Specifies which camera to use and the resolution -->
+  <node name="camera_control" pkg="baxter_tools" type="camera_control.py"
+    args="-o left_hand_camera -r 640x400"/>
+
+  <!-- Start the Gripper Action Server -->
+  <node name="rsdk_left_gripper_action_server" pkg="baxter_interface" type="gripper_action_server.py" args="--gripper left" required="true" />
+  <node name="rsdk_right_gripper_action_server" pkg="baxter_interface" type="gripper_action_server.py" args="--gripper right" required="true" />
+
+  <node pkg="baxter_interface" type="joint_trajectory_action_server.py" name="joint_traj_action_srv" output="screen" respawn="false" />
+
+  <!-- up to date -->
+  <node pkg="inspection_task" type="baxter_screws_prediction.py" name="baxter_screws_prediction" output="screen" respawn="false"/>
+
+  <!-- need to modify this somehow -->
+  <!-- <node pkg="inspection_task" type="pickup_object.py" name="pickup_object" output="screen" respawn="true" launch-prefix="xterm -e "/> -->
+  <node pkg="inspection_task" type="inspection.py" name="inspection" output="screen" respawn="false" />
+
+  <!-- <node pkg="inspection_task" type="request_object.py" name="request_object" output="screen" respawn="false" required="true"/> -->
+
+  <!-- Gripper Cuff control -->
+  <node pkg="baxter_examples" type="gripper_cuff_control.py" name="gripper_cuff_control" output="screen" respawn="false" />
+
+</launch>

@@ -1,0 +1,250 @@
+<?xml version="1.0" ?>
+<robot name="ridgeback_baxter" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:arg name="pedestal" default="true"/>
+  <xacro:arg name="gazebo" default="false"/>
+  <xacro:arg name="left_electric_gripper" default="true"/>
+  <xacro:arg name="right_electric_gripper" default="true"/>
+
+  <!--Ridgeback Robot-->
+  <xacro:include filename="$(find ridgeback_description)/urdf/ridgeback.urdf.xacro" />
+
+  <!-- Baxter Robot -->
+   <xacro:include filename="$(find baxter_description)/urdf/baxter.urdf.xacro">
+     <xacro:arg name="gazebo" value="${gazebo}"/>
+     <xacro:arg name="pedestal" value="${pedestal}"/>
+   </xacro:include>
+
+   <xacro:property name="pedestal_height" value="2" />
+   <xacro:property name="pedestal_diameter" value="0.203" />
+   <xacro:property name="pedestal_offset_x" value="0.2" />
+
+   <joint name="ridgeback_base_to_baxter" type="fixed">
+    <origin rpy="0 0 0" xyz="${pedestal_offset_x} 0 0.7" />
+    <parent link="mid_mount" />
+    <child link="base" />
+   </joint>
+
+
+ <!-- Constants for camera mount  dimensions -->
+   <xacro:property name="massp" value="0.05" /> <!-- arbitrary value for mass -->
+   <xacro:property name="widthp" value="0.025" /> <!-- Radius of the camera mount -->
+   <xacro:property name="heightp" value="0.085" /> <!--Height of the camera mount -->
+   <xacro:property name="mass" value="0.05" /> <!-- arbitrary value for mass -->
+   <xacro:property name="width" value="0.02" /> <!-- Radius of the camera mount -->
+   <xacro:property name="height" value="0.085" /> <!--Height of the camera mount -->
+   <xacro:property name="camera_length" value="0.0492" /> <!-- Size of square 'camera' box -->
+   <xacro:property name="camera_width" value="0.025" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_diff" value="${pi/3}" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_1" value="0" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_2" value="0" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_3" value="0" /> <!-- Space btw top of beam and the each joint -->
+
+   <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <!--<xacro:include filename="$(find ridgeback_baxter_description)/urdf/multi_d435.gazebo" />-->
+
+
+  <joint name="ridgeback_to_mount" type="fixed">
+    <parent link="base_link" />
+    <child link="mount_tripod" />
+    <origin rpy="0 0.296706 0" xyz="0.4 0 1.23" />
+  </joint>
+
+
+ <!-- Tripod -->
+    <link name="mount_tripod">
+      <collision>
+        <origin xyz="0 0 ${heightp/2}" rpy="0 0 0"/>
+        <geometry>
+           <cylinder radius="${widthp}" length="${heightp}"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+  	       <mesh filename="package://ridgeback_baxter_description/meshes/tripod_simplified.STL"/>
+        </geometry>
+
+        <material name="orange"/>
+      </visual>
+
+      <inertial>
+        <origin xyz="0 0 ${heightp/2}" rpy="0 0 0"/>
+        <mass value="${massp}"/>
+        <inertia
+  	  ixx="${massp / 12.0 * (widthp*widthp + heightp*heightp)}" ixy="0.0" ixz="0.0"
+  	  iyy="${massp / 12.0 * (heightp*heightp + widthp*widthp)}" iyz="0.0"
+  	  izz="${massp / 12.0 * (widthp*widthp + widthp*widthp)}"/>
+      </inertial>
+    </link>
+
+
+      <joint name="camera_mount_joint" type="fixed">
+        <parent link="mount_tripod" />
+        <child link="multi_d435_mount" />
+        <origin rpy="0 0 0" xyz="0 0 ${heightp} " />
+      </joint>
+
+
+      <!-- Camera mount Link -->
+      <link name="multi_d435_mount">
+        <collision>
+          <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+          <geometry>
+             <cylinder radius="${width}" length="${height}"/>
+          </geometry>
+        </collision>
+
+       <visual>
+          <origin xyz="0 0 0" rpy="0 0 ${pi/6}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_baxter_description/meshes/D435x6_mounting-support.STL"/>
+          </geometry>
+        </visual>
+
+        <inertial>
+          <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+          <mass value="${mass}"/>
+          <inertia
+    	  ixx="${mass / 12.0 * (width*width + height*height)}" ixy="0.0" ixz="0.0"
+    	  iyy="${mass / 12.0 * (height*height + width*width)}" iyz="0.0"
+    	  izz="${mass / 12.0 * (width*width + width*width)}"/>
+        </inertial>
+      </link>
+
+
+      <joint name="camera_joint_1" type="fixed">
+        <origin xyz="${width+camera_width} 0 ${height-camera_length}" rpy="${pi/2} ${angle_tilt_1} 0"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera1_link"/>
+      </joint>
+
+      <joint name="camera_joint_2" type="fixed">
+        <origin xyz="${(width+camera_width)*cos(angle_diff)} ${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="${pi/2} ${angle_tilt_2} ${angle_diff}"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera2_link"/>
+      </joint>
+
+      <joint name="camera_joint_3" type="fixed">
+        <origin xyz="${(width+camera_width)*cos(angle_diff)} -${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="${pi/2} ${angle_tilt_3} -${angle_diff}"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera3_link"/>
+      </joint>
+
+
+      <!-- Camera 1-->
+      <link name="camera1_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_width} ${camera_length} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_baxter_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+      <!-- Camera 2-->
+      <link name="camera2_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_baxter_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+      <!-- Camera 3-->
+      <link name="camera3_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+    <joint name="camera_optical_joint_1" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera1_link"/>
+    <child link="camera_link_optical_1"/>
+  </joint>
+
+  <link name="camera_link_optical_1">
+  </link>
+
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+  <joint name="camera_optical_joint_2" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera2_link"/>
+    <child link="camera_link_optical_2"/>
+  </joint>
+
+  <link name="camera_link_optical_2">
+  </link>
+
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+  <joint name="camera_optical_joint_3" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera3_link"/>
+    <child link="camera_link_optical_3"/>
+  </joint>
+
+  <link name="camera_link_optical_3">
+</link>
+
+
+
+</robot>
