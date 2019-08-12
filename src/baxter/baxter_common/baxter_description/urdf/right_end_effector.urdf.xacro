@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<robot name="right_end_effector" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="right_electric_gripper" default="false"/>
+  <xacro:if value="$(arg right_electric_gripper)">
+    <xacro:include filename="$(find rethink_ee_description)/urdf/electric_gripper/rethink_electric_gripper.xacro" />
+    <xacro:rethink_electric_gripper side="right"
+                                    l_finger="extended_wide"
+                                    l_finger_slot="4"
+                                    l_finger_tip="paddle_tip"
+                                    l_finger_grasp="inner"
+                                    r_finger="extended_wide"
+                                    r_finger_slot="4"
+                                    r_finger_tip="paddle_tip"
+                                    r_finger_grasp="inner"/>
+  </xacro:if>
+  <xacro:unless value="$(arg right_electric_gripper)">
+  <xacro:include filename="$(cwd)/src/baxter/baxter_common/rethink_ee_description/urdf/null_gripper/null_gripper.xacro" />
+    <xacro:null_gripper side="right"/>
+  </xacro:unless>
+</robot>

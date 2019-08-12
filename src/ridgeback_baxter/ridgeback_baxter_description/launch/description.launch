@@ -1,0 +1,34 @@
+<launch>
+  <arg name="left_electric_gripper" default="true"/>
+  <arg name="right_electric_gripper" default="true"/>
+  <arg name="ridgeback_config" default="dual_hokuyo_lasers" />
+
+<node pkg="tf" type="static_transform_publisher" name="ref_base_to_mid_mount_tf"
+          args="0.2
+                0.0
+                0.7
+                0.0
+                0.0
+                0.0
+                /mid_mount
+                /refence/base
+                100" />
+
+<node pkg="tf" type="static_transform_publisher" name="base_to_mid_mount_tf"
+          args="0.2
+                0.0
+                0.7
+                0.0
+                0.0
+                0.0
+                /mid_mount
+                /base
+                100" />
+
+  <param name="robot_description"
+    command="$(find ridgeback_baxter_description)/scripts/env_run
+            $(find ridgeback_baxter_description)/urdf/configs/$(arg ridgeback_config)
+            $(find xacro)/xacro --inorder $(find ridgeback_baxter_description)/urdf/ridgeback_baxter.urdf.xacro gazebo:=true
+   left_electric_gripper:=$(arg left_electric_gripper) right_electric_gripper:=$(arg right_electric_gripper)"/>
+  <node name="ridgeback_baxter_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+</launch>

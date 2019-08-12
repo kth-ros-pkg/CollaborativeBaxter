@@ -1,0 +1,62 @@
+<launch>
+
+    <!-- ROS PARAMETERS  -->
+    <arg name="smach_view" default="false" />
+
+    <!-- Position right arm -->
+    <param name="right_e0" value="0.6787864986392956"/>
+    <param name="right_e1" value="1.5013836961428486"/>
+    <param name="right_s0" value="0.23930100291012454"/>
+    <param name="right_s1" value="-0.9997719785043184"/>
+    <param name="right_w0" value="-0.40382044241083515"/>
+    <param name="right_w1" value="1.175029283520227"/>
+    <param name="right_w2" value="-2.9582819494370205"/>
+
+    <!-- Position left arm -->
+    <param name="left_e0" value="-0.25579129637989273"/>
+    <param name="left_e1" value="1.989956577084353"/>
+    <param name="left_s0" value="-0.2389175077131532"/>
+    <param name="left_s1" value="-1.13054384067155"/>
+    <param name="left_w0" value="0.14611167004608566"/>
+    <param name="left_w1" value="0.679169993836267"/>
+    <param name="left_w2" value="-2.899223689103432"/>
+
+    <!-- TF for hand camera link -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="1.28 0.10 0.19 0 0 0 base camera_link 1000" /> -->
+
+    <include file="$(find baxter_moveit_config)/launch/planning_context.launch">
+        <arg name="load_robot_description" value="false"/>
+    </include>
+
+    <include file="$(find baxter_moveit_config)/launch/move_group.launch">
+        <arg name="allow_trajectory_execution" value="true"/>
+    </include>
+
+    <!-- Upper-level state machine -->
+    <node pkg="smach_baxter" type="sm_baxter.py" name="logic_state_machine" output="screen"/>
+    
+    <group if="$(arg smach_view)">
+        <node pkg="smach_viewer" type="smach_viewer.py" name="state_machine_viewer" output="screen"/>
+    </group>
+
+    <!-- Launch Baxter's cameras -->
+    <node name="camera_control_right" pkg="baxter_tools" type="camera_control.py" args="-o right_hand_camera -r 640x400"/>
+    <node name="camera_control_left" pkg="baxter_tools" type="camera_control.py" args="-o left_hand_camera -r 640x400"/>
+
+    <!-- Start the Gripper Action Server -->
+    <node name="rsdk_left_gripper_action_server" pkg="baxter_interface" type="gripper_action_server.py" args="--gripper left" required="true" />
+    <node name="rsdk_right_gripper_action_server" pkg="baxter_interface" type="gripper_action_server.py" args="--gripper right" required="true" />
+
+    <node pkg="baxter_interface" type="joint_trajectory_action_server.py" name="joint_traj_action_srv" output="screen" respawn="true" />
+
+    <!-- FROM ORIGINAL LAUNCH FILES -->
+    <!-- <node pkg="assembly_task" type="request_object_SMACH.py" name="request_object" output="screen" respawn="false"/> -->
+    <!-- <node pkg="assembly_task" type="baxter_object_prediction_SMACH.py" name="baxter_object_prediction" output="screen" respawn="false"/> -->
+    <!-- <node pkg="assembly_task" type="pickup_object_SMACH.py" name="pickup_object" output="screen" respawn="false" /> -->
+
+    <!-- Gripper Cuff control -->
+    <node pkg="baxter_examples" type="gripper_cuff_control.py" name="gripper_cuff_control" output="screen" respawn="false" />
+
+
+
+</launch>

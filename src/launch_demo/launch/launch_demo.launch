@@ -1,0 +1,5 @@
+<launch>
+
+  <node pkg="launch_demo" type="request_action.py" name="request_action" output="screen" respawn="false" required="true"/>
+
+</launch>

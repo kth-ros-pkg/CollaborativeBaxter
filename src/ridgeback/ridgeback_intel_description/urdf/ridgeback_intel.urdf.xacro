@@ -1,0 +1,531 @@
+<?xml version="1.0"?>
+<robot name="ridgeback" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:property name="PI" value="3.1415926535897931" />
+
+  <xacro:property name="wheel_radius" value="0.0759" />
+  <xacro:property name="wheel_width" value="0.0790" />
+
+  <xacro:property name="chassis_length" value="0.960" />
+  <xacro:property name="chassis_width" value="0.793" />
+  <xacro:property name="chassis_height" value="0.216" />
+  <xacro:property name="deck_height" value="0.280" />
+
+  <xacro:property name="axle_offset" value="0.0500" />
+  <xacro:property name="rocker_offset" value="0.319" />
+  <xacro:property name="rocker_width" value="0.472" />
+
+  <xacro:property name="imu_offset_x" value="0.2085" />
+  <xacro:property name="imu_offset_y" value="-0.2902" />
+  <xacro:property name="imu_offset_z" value="0.1681" />
+
+  <xacro:property name="dummy_inertia" value="1e-09"/>
+
+  <material name="dark_grey"><color rgba="0.2 0.2 0.2 1.0" /></material>
+  <material name="light_grey"><color rgba="0.4 0.4 0.4 1.0" /></material>
+  <material name="red"><color rgba="0.8 0.0 0.0 1.0" /></material>
+  <material name="white"><color rgba="0.9 0.9 0.9 1.0" /></material>
+  <material name="yellow"><color rgba="0.8 0.8 0.0 1.0" /></material>
+  <material name="black"><color rgba="0.15 0.15 0.15 1.0" /></material>
+
+  <xacro:macro name="wheel" params="prefix side *joint_pose">
+    <link name="${prefix}_${side}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
+        <geometry>
+          <mesh filename="package://ridgeback_intel_description/meshes/wheel.stl"/>
+        </geometry>
+        <material name="black" />
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="2.3"/>
+        <inertia
+          ixx="3.3212e-3" ixy="0" ixz="0"
+          iyy="6.6424e-3" iyz="0"
+          izz="3.3212e-3"/>
+      </inertial>
+    </link>
+
+    <joint name="${prefix}_${side}_wheel" type="continuous">
+      <parent link="${prefix}_rocker_link"/>
+      <child link="${prefix}_${side}_wheel_link" />
+      <xacro:insert_block name="joint_pose" />
+      <axis xyz="0 1 0" />
+    </joint>
+
+    <transmission name="${prefix}_wheel_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_${side}_wheel">
+        <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}_${side}_actuator">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+
+  <xacro:macro name="rocker" params="prefix joint_type location *joint_limits">
+    <link name="${prefix}_rocker_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 ${PI/2}" />
+        <geometry>
+          <mesh filename="package://ridgeback_intel_description/meshes/rocker.stl"/>
+        </geometry>
+        <material name="black" />
+      </visual>
+      <inertial>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 ${PI/2}"/>
+        <mass value="10.267"/>
+        <inertia
+          ixx="0.0288" ixy="2.20484e-6" ixz="-1.3145e-5"
+          iyy="0.4324" iyz="1.8944e-3"
+          izz="0.4130"/>
+      </inertial>
+    </link>
+
+    <joint name="${prefix}_rocker" type="${joint_type}">
+      <parent link="axle_link"/>
+      <child link="${prefix}_rocker_link" />
+      <origin xyz="${location*rocker_offset} 0 0" rpy="0 0 0" />
+      <axis xyz="1 0 0" />
+      <xacro:insert_block name="joint_limits" />
+    </joint>
+
+    <xacro:wheel prefix="${prefix}" side="left">
+      <origin xyz="0 ${rocker_width/2 + wheel_width/2} 0" rpy="0 0 0" />
+    </xacro:wheel>
+    <xacro:wheel prefix="${prefix}" side="right">
+      <origin xyz="0 ${-(rocker_width/2 + wheel_width/2)} 0" rpy="0 0 0" />
+    </xacro:wheel>
+  </xacro:macro>
+
+  <xacro:rocker prefix="front" joint_type="revolute" location="1" >
+    <limit lower="-0.08726" upper="0.08726" effort="0" velocity="0" />
+  </xacro:rocker>
+
+  <xacro:rocker prefix="rear" joint_type="fixed" location="-1" >
+    <limit effort="0" velocity="0" />
+  </xacro:rocker>
+
+  <link name="base_link"></link>
+
+  <joint name="base_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="base_link"/>
+    <child link="chassis_link" />
+  </joint>
+
+  <link name="chassis_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/body.stl"/>
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/body-collision.stl"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.012 0.002 0.067" rpy="${PI/2} 0 ${PI/2}"/>
+      <mass value="165.304"/>
+      <inertia
+        ixx="4.4744" ixy="0.03098" ixz="0.003647"
+        iyy="7.1624" iyz="0.1228"
+        izz="4.6155"/>
+    </inertial>
+  </link>
+
+  <joint name="right_side_cover_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="right_side_cover_link" />
+  </joint>
+  <joint name="left_side_cover_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="left_side_cover_link" />
+  </joint>
+
+  <link name="left_side_cover_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 ${PI}" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/side-cover.stl"/>
+      </geometry>
+      <material name="yellow" />
+    </visual>
+  </link>
+  <link name="right_side_cover_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/side-cover.stl"/>
+      </geometry>
+      <material name="yellow" />
+    </visual>
+  </link>
+
+  <joint name="front_cover_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="front_cover_link" />
+  </joint>
+
+  <link name="front_cover_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/end-cover.stl" />
+      </geometry>
+      <material name="black" />
+    </visual>
+  </link>
+
+  <joint name="rear_cover_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="rear_cover_link" />
+  </joint>
+
+  <link name="rear_cover_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 ${PI}" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/end-cover.stl" />
+      </geometry>
+      <material name="black" />
+    </visual>
+  </link>
+
+  <joint name="front_lights_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="front_lights_link" />
+  </joint>
+  <joint name="rear_lights_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="rear_lights_link" />
+  </joint>
+
+  <link name="front_lights_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/lights.stl" />
+      </geometry>
+      <material name="white" />
+    </visual>
+  </link>
+  <link name="rear_lights_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 ${PI}" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/lights.stl" />
+      </geometry>
+      <material name="red" />
+    </visual>
+  </link>
+
+  <joint name="top_link_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="top_link" />
+  </joint>
+
+  <link name="top_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/top.stl" />
+      </geometry>
+      <material name="black" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/top.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="axle_joint" type="fixed">
+    <origin xyz="0 0 ${axle_offset}" rpy="0 0 0" />
+    <parent link="chassis_link"/>
+    <child link="axle_link" />
+  </joint>
+
+  <link name="axle_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 ${PI/2} 0" />
+      <geometry>
+        <mesh filename="package://ridgeback_intel_description/meshes/axle.stl" />
+      </geometry>
+      <material name="black" />
+    </visual>
+  </link>
+
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.001"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="${dummy_inertia}" ixy="0.0" ixz="0.0" iyy="${dummy_inertia}" iyz="0.0" izz="${dummy_inertia}"/>
+    </inertial>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="chassis_link" />
+    <child link="imu_link" />
+    <origin xyz="${imu_offset_x} ${imu_offset_y} ${imu_offset_z}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="mid_mount" />
+  <joint name="mid_mount_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="mid_mount" />
+    <origin xyz="0 0 ${deck_height}" rpy="0 0 0"/>
+  </joint>
+
+
+
+
+<!-- Constants for camera mount  dimensions -->
+<xacro:property name="massp" value="0.05" /> <!-- arbitrary value for mass -->
+   <xacro:property name="widthp" value="0.025" /> <!-- Radius of the camera mount -->
+   <xacro:property name="heightp" value="0.085" /> <!--Height of the camera mount -->
+   <xacro:property name="mass" value="0.05" /> <!-- arbitrary value for mass -->
+   <xacro:property name="width" value="0.02" /> <!-- Radius of the camera mount -->
+   <xacro:property name="height" value="0.085" /> <!--Height of the camera mount -->
+   <xacro:property name="camera_length" value="0.0492" /> <!-- Size of square 'camera' box -->
+   <xacro:property name="camera_width" value="0.025" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_diff" value="${pi/3}" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_1" value="0" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_2" value="0" /> <!-- Space btw top of beam and the each joint -->
+   <xacro:property name="angle_tilt_3" value="0" /> <!-- Space btw top of beam and the each joint -->
+
+   <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <xacro:include filename="$(find ridgeback_intel_description)/urdf/multi_d435.gazebo" />
+
+
+  <joint name="ridgeback_to_mount" type="fixed">
+    <parent link="base_link" />
+    <child link="mount_tripod" />
+    <origin rpy="0 0 0" xyz="0.215 0 1.21" />
+  </joint>
+
+
+   <!-- Tripod -->
+      <link name="mount_tripod">
+        <collision>
+          <origin xyz="0 0 ${heightp/2}" rpy="0 0 0"/>
+          <geometry>
+             <cylinder radius="${widthp}" length="${heightp}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/tripod_simplified.STL"/>
+          </geometry>
+
+          <material name="orange"/>
+        </visual>
+
+        <inertial>
+          <origin xyz="0 0 ${heightp/2}" rpy="0 0 0"/>
+          <mass value="${massp}"/>
+          <inertia
+    	  ixx="${massp / 12.0 * (widthp*widthp + heightp*heightp)}" ixy="0.0" ixz="0.0"
+    	  iyy="${massp / 12.0 * (heightp*heightp + widthp*widthp)}" iyz="0.0"
+    	  izz="${massp / 12.0 * (widthp*widthp + widthp*widthp)}"/>
+        </inertial>
+      </link>
+
+
+      <joint name="camera_mount_joint" type="fixed">
+        <parent link="mount_tripod" />
+        <child link="multi_d435_mount" />
+        <origin rpy="0 0 0" xyz="0 0 ${heightp} " />
+      </joint>
+
+
+      <!-- Camera mount Link -->
+      <link name="multi_d435_mount">
+        <collision>
+          <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+          <geometry>
+             <cylinder radius="${width}" length="${height}"/>
+          </geometry>
+        </collision>
+
+       <visual>
+          <origin xyz="0 0 0" rpy="0 0 ${pi/6}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/D435x6_mounting-support.STL"/>
+          </geometry>
+        </visual>
+
+        <inertial>
+          <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+          <mass value="${mass}"/>
+          <inertia
+    	  ixx="${mass / 12.0 * (width*width + height*height)}" ixy="0.0" ixz="0.0"
+    	  iyy="${mass / 12.0 * (height*height + width*width)}" iyz="0.0"
+    	  izz="${mass / 12.0 * (width*width + width*width)}"/>
+        </inertial>
+      </link>
+
+
+      <joint name="camera_joint_1" type="fixed">
+        <origin xyz="${width+camera_width} 0 ${height-camera_length}" rpy="${pi/2} ${angle_tilt_1} 0"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera1_link"/>
+      </joint>
+
+      <joint name="camera_joint_2" type="fixed">
+        <origin xyz="${(width+camera_width)*cos(angle_diff)} ${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="${pi/2} ${angle_tilt_2} ${angle_diff}"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera2_link"/>
+      </joint>
+
+      <joint name="camera_joint_3" type="fixed">
+        <origin xyz="${(width+camera_width)*cos(angle_diff)} -${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="${pi/2} ${angle_tilt_3} -${angle_diff}"/>
+        <parent link="multi_d435_mount"/>
+        <child link="camera3_link"/>
+      </joint>
+
+
+      <!-- Camera 1-->
+      <link name="camera1_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_width} ${camera_length} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+      <!-- Camera 2-->
+      <link name="camera2_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+      <!-- Camera 3-->
+      <link name="camera3_link">
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+    	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+          </geometry>
+        </collision>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}"/>
+          <geometry>
+    	       <mesh filename="package://ridgeback_intel_description/meshes/Intel_RealSense_Depth_Camera_D435.STL"/>
+          </geometry>
+          <material name="red"/>
+        </visual>
+        <inertial>
+          <mass value="0.0615752" />
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+        </inertial>
+      </link>
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+    <joint name="camera_optical_joint_1" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera1_link"/>
+    <child link="camera_link_optical_1"/>
+  </joint>
+
+  <link name="camera_link_optical_1">
+  </link>
+
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+  <joint name="camera_optical_joint_2" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera2_link"/>
+    <child link="camera_link_optical_2"/>
+  </joint>
+
+  <link name="camera_link_optical_2">
+  </link>
+
+
+  <!-- generate an optical frame http://www.ros.org/reps/rep-0103.html#suffix-frames
+      so that ros and opencv can operate on the camera frame correctly -->
+  <joint name="camera_optical_joint_3" type="fixed">
+    <!-- these values have to be these values otherwise the gazebo camera image
+        won't be aligned properly with the frame it is supposedly originating from -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera3_link"/>
+    <child link="camera_link_optical_3"/>
+  </joint>
+
+  <link name="camera_link_optical_3">
+</link>     
+  
+  <!-- Bring in simulation data for Gazebo. -->
+  <xacro:include filename="$(find ridgeback_intel_description)/urdf/ridgeback_intel.gazebo" />
+
+  <!-- Optional standard accessories, including their simulation data. The rendering
+       of these into the final description is controlled by optenv variables, which
+       default each one to off.-->
+  <xacro:include filename="$(find ridgeback_intel_description)/urdf/accessories.urdf.xacro" />
+
+  <!-- Optional custom includes. -->
+  <xacro:include filename="$(optenv RIDGEBACK_URDF_EXTRAS empty.urdf)" />
+</robot>
