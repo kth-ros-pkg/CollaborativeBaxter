@@ -15,9 +15,7 @@ The main installation and running steps are described here.
 
 ## Video
 
-** INSERT NEW VIDEO LINK HERE **
-
-<!-- [![Watch the video](https://i.imgur.com/vKb2F1B.png)](https://youtu.be/vt5fpE0bzSY) -->
+[![Watch the video]()](https://youtu.be/jia6zDLpsHE)
 
 
 ## Dependencies (to be installed separately, before compiling the project)
